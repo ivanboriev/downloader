@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 )
 
 func main() {
@@ -51,12 +52,24 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 		fmt.Println("  - ", url)
 	}
 
+	var wg sync.WaitGroup
+
 	for _, url := range urls {
-		if err := downloadFile(url, directory); err != nil {
-			fmt.Fprintf(os.Stderr, "Ошибка при скачивании %s: %v\n", url, err)
-		}
+		wg.Add(1)
+		go func(url string) {
+			defer wg.Done()
+			fmt.Printf("Начинаем скачивание: %s\n", url)
+			if err := downloadFile(url, directory); err != nil {
+				fmt.Fprintf(os.Stderr, "Ошибка при скачивании %s: %v\n", url, err)
+			} else {
+				fmt.Printf("Файл %s успешно скачан.\n", url)
+			}
+		}(url)
 	}
 
+	wg.Wait()
+
+	fmt.Println("Загрузка завершена.")
 }
 
 func downloadFile(url, savePath string) error {
