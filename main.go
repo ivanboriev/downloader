@@ -59,9 +59,9 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 
 }
 
-func downloadFile(directory, url string) error {
-	if err := os.MkdirAll(directory, 0755); err != nil {
-		return fmt.Errorf("create directory %s: %w", directory, err)
+func downloadFile(url, savePath string) error {
+	if err := os.MkdirAll(savePath, 0755); err != nil {
+		return fmt.Errorf("create directory %s: %w", savePath, err)
 	}
 
 	resp, err := http.Get(url)
@@ -75,7 +75,7 @@ func downloadFile(directory, url string) error {
 	}
 
 	filename := path.Base(url)
-	savePath := filepath.Join(directory, filename)
+	savePath = filepath.Join(savePath, filename)
 
 	out, err := os.Create(savePath)
 	if err != nil {
