@@ -39,8 +39,8 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 		os.Exit(2)
 	}
 
-	directory := args[0]
-	urls := args[1:]
+	directory := os.Args[1]
+	urls := os.Args[2:]
 
 	fmt.Println("Директория сохранения: ", directory)
 	fmt.Println("URL для скачивания:")
