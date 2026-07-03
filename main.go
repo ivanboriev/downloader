@@ -32,9 +32,7 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 
 	flag.Parse()
 
-	args := flag.Args()
-
-	if help || h || len(args) < 3 {
+	if help || h || len(os.Args) < 3 {
 		flag.Usage()
 		os.Exit(2)
 	}
