@@ -3,7 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 )
 
 func main() {
@@ -47,4 +51,42 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 		fmt.Println("  - ", url)
 	}
 
+	for _, url := range urls {
+		if err := downloadFile(directory, url); err != nil {
+			fmt.Fprintf(os.Stderr, "Ошибка при скачивании %s: %v\n", url, err)
+		}
+	}
+
+}
+
+func downloadFile(directory, url string) error {
+	if err := os.MkdirAll(directory, 0755); err != nil {
+		return fmt.Errorf("create directory %s: %w", directory, err)
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("http get %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %s for %s", resp.Status, url)
+	}
+
+	filename := path.Base(url)
+	savePath := filepath.Join(directory, filename)
+
+	out, err := os.Create(savePath)
+	if err != nil {
+		return fmt.Errorf("create file %s: %w", savePath, err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("write file %s: %w", savePath, err)
+	}
+
+	return nil
 }
