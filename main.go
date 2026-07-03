@@ -52,7 +52,7 @@ downloader ./downloads http://example.com/file1.zip http://example.com/file2.zip
 	}
 
 	for _, url := range urls {
-		if err := downloadFile(directory, url); err != nil {
+		if err := downloadFile(url, directory); err != nil {
 			fmt.Fprintf(os.Stderr, "Ошибка при скачивании %s: %v\n", url, err)
 		}
 	}
