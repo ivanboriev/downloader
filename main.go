@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,13 @@ type Downloader struct {
 	Client    *http.Client
 	Directory string
 	Urls      []string
+}
+
+type DownloadState struct {
+	URL         string `json:"url"`
+	TotalSize   int64  `json:"total_size"`
+	ChunkSize   int    `json:"chunk_size"`
+	TotalChunks int    `json:"total_chunks"`
 }
 
 func NewDownloader(directory string, urls []string) *Downloader {
@@ -133,6 +141,24 @@ func (d *Downloader) Process() {
 
 					filename := path.Base(url)
 					savePath := filepath.Join(d.Directory, filename)
+
+					state := DownloadState{
+						URL:         url,
+						TotalSize:   headers.ContentLength,
+						ChunkSize:   chunkSize,
+						TotalChunks: len(chunks),
+					}
+					stateData, err := json.MarshalIndent(state, "", "  ")
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Ошибка при сериализации состояния: %v\n", err)
+						return
+					}
+					progressPath := savePath + ".progress"
+					if err := os.WriteFile(progressPath, stateData, 0644); err != nil {
+						fmt.Fprintf(os.Stderr, "Ошибка при записи файла состояния %s: %v\n", progressPath, err)
+						return
+					}
+
 					out, err := os.Create(savePath)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Ошибка при создании файла %s: %v\n", savePath, err)
