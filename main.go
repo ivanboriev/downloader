@@ -13,6 +13,14 @@ import (
 	"time"
 )
 
+const chunkSize = 10 * 1024 * 1024 // 10 MB
+
+type Chunk struct {
+	Index int
+	Start int64
+	End   int64
+}
+
 type Headers struct {
 	ContentLength int64
 	AcceptRanges  bool
@@ -85,6 +93,26 @@ func (d *Downloader) GetHeaders(url string) (Headers, error) {
 	}, nil
 }
 
+func splitIntoChunks(fileSize int64) []Chunk {
+	var chunks []Chunk
+	var start int64
+
+	for i := 0; start < fileSize; i++ {
+		end := start + chunkSize - 1
+		if end >= fileSize {
+			end = fileSize - 1
+		}
+		chunks = append(chunks, Chunk{
+			Index: i,
+			Start: start,
+			End:   end,
+		})
+		start = end + 1
+	}
+
+	return chunks
+}
+
 func (d *Downloader) Process() {
 	var wg sync.WaitGroup
 
@@ -92,12 +120,35 @@ func (d *Downloader) Process() {
 		wg.Add(1)
 		go func(url string) {
 			defer wg.Done()
-			fmt.Printf("Фaйл: %s", path.Base(url))
+			fmt.Printf("Фaйл: %s\n", path.Base(url))
 			if headers, err := d.GetHeaders(url); err != nil {
 				fmt.Fprintf(os.Stderr, "Ошибка при получении заголовков %s: %v\n", url, err)
 			} else {
 				fmt.Printf("Размер файла: %d байт\n", headers.ContentLength)
 				fmt.Printf("Поддержка докачки: %t\n", headers.AcceptRanges)
+
+				if headers.AcceptRanges && headers.ContentLength > 0 {
+					chunks := splitIntoChunks(headers.ContentLength)
+					fmt.Printf("Количество чанков: %d\n", len(chunks))
+
+					filename := path.Base(url)
+					savePath := filepath.Join(d.Directory, filename)
+					out, err := os.Create(savePath)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Ошибка при создании файла %s: %v\n", savePath, err)
+						return
+					}
+					if err := out.Truncate(headers.ContentLength); err != nil {
+						fmt.Fprintf(os.Stderr, "Ошибка при установке размера файла %s: %v\n", savePath, err)
+						out.Close()
+						return
+					}
+					out.Close()
+
+					for _, chunk := range chunks {
+						fmt.Printf("Чанк %d: %d-%d\n", chunk.Index, chunk.Start, chunk.End)
+					}
+				}
 			}
 
 			fmt.Printf("Начинаем скачивание: %s\n", url)
