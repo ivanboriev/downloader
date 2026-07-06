@@ -145,9 +145,51 @@ func (d *Downloader) Process() {
 					}
 					out.Close()
 
-					for _, chunk := range chunks {
-						fmt.Printf("Чанк %d: %d-%d\n", chunk.Index, chunk.Start, chunk.End)
+					out, err = os.OpenFile(savePath, os.O_WRONLY|os.O_APPEND, 0644)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Ошибка при открытии файла %s: %v\n", savePath, err)
+						return
 					}
+
+					for _, chunk := range chunks {
+						fmt.Printf("Скачиваю чанк %d: %d-%d\n", chunk.Index, chunk.Start, chunk.End)
+
+						req, err := http.NewRequest("GET", url, nil)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Ошибка при создании запроса для чанка %d: %v\n", chunk.Index, err)
+							out.Close()
+							return
+						}
+						req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", chunk.Start, chunk.End))
+
+						resp, err := d.Client.Do(req)
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Ошибка при скачивании чанка %d: %v\n", chunk.Index, err)
+							out.Close()
+							return
+						}
+
+						if resp.StatusCode != http.StatusPartialContent {
+							fmt.Fprintf(os.Stderr, "Неожиданный статус для чанка %d: %s\n", chunk.Index, resp.Status)
+							resp.Body.Close()
+							out.Close()
+							return
+						}
+
+						_, err = io.Copy(out, resp.Body)
+						resp.Body.Close()
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Ошибка при записи чанка %d: %v\n", chunk.Index, err)
+							out.Close()
+							return
+						}
+
+						fmt.Printf("Чанк %d скачан.\n", chunk.Index)
+					}
+
+					out.Close()
+					fmt.Printf("Файл %s успешно скачан.\n", url)
+					return
 				}
 			}
 
