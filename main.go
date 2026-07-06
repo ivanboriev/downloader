@@ -208,6 +208,13 @@ func (d *Downloader) Process() {
 
 						_, err = io.Copy(out, resp.Body)
 
+						defer resp.Body.Close()
+						if err != nil {
+							fmt.Fprintf(os.Stderr, "Ошибка при записи чанка %d: %v\n", chunk.Index, err)
+							defer out.Close()
+							return
+						}
+
 						state.DownloadedChunks[index] = true
 
 						stateData, err := json.MarshalIndent(state, "", "  ")
@@ -218,13 +225,6 @@ func (d *Downloader) Process() {
 						progressPath := savePath + ".progress"
 						if err := os.WriteFile(progressPath, stateData, 0644); err != nil {
 							fmt.Fprintf(os.Stderr, "Ошибка при записи файла состояния %s: %v\n", progressPath, err)
-							return
-						}
-
-						defer resp.Body.Close()
-						if err != nil {
-							fmt.Fprintf(os.Stderr, "Ошибка при записи чанка %d: %v\n", chunk.Index, err)
-							defer out.Close()
 							return
 						}
 
