@@ -176,6 +176,8 @@ func (d *Downloader) Process() {
 							return
 						}
 
+						out.Seek(chunk.Start, io.SeekStart)
+
 						_, err = io.Copy(out, resp.Body)
 						defer resp.Body.Close()
 						if err != nil {
